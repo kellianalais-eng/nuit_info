@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PhilosophoBot — Web</title>
+  <style>
+    :root{
+      --bg:#f2f6fb; --phone:#111217; --screen:#ffffff; --accent:#ff6fa3; --bot:#e8f6ff; --user:#fff6df; --muted:#6b7280;
+      --shadow: 0 8px 30px rgba(15,23,42,0.12);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#fbfcff 0%,var(--bg) 100%);display:flex;align-items:center;justify-content:center}
+    .stage{width:360px}
+
+    /* Phone shell */
+    .phone{
+      width:360px;background:var(--phone);border-radius:36px;padding:12px;box-shadow:var(--shadow);position:relative;border:6px solid rgba(0,0,0,0.25);
+    }
+    .phone:before{content:'';display:block;width:70px;height:6px;background:linear-gradient(90deg,#333,#000);border-radius:6px;margin:0 auto 8px}
+    .speaker{height:6px;width:60px;background:#222;border-radius:6px;margin:6px auto 10px}
+
+    /* Screen */
+    .screen{background:var(--screen);border-radius:24px;padding:14px;min-height:600px;display:flex;flex-direction:column}
+    .header{display:flex;align-items:center;gap:10px;padding-bottom:8px}
+    .avatar{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#ffb3d6,var(--accent));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    .title{font-weight:700;font-size:15px}
+    .subtitle{font-size:12px;color:var(--muted)}
+
+    /* messages area */
+    .messages{flex:1;overflow:auto;padding:8px 2px 12px;display:flex;flex-direction:column;gap:12px}
+    .bubble{max-width:78%;padding:10px 12px;border-radius:14px;line-height:1.3;box-shadow:0 2px 6px rgba(11,15,26,0.06);word-wrap:break-word}
+    .bot{align-self:flex-start;background:var(--bot);color:#062139;border-top-left-radius:6px;border-top-right-radius:14px;border-bottom-right-radius:14px}
+    .user{align-self:flex-end;background:var(--user);color:#3a2b00;border-top-right-radius:6px;border-top-left-radius:14px;border-bottom-left-radius:14px}
+    .meta{font-size:11px;color:var(--muted);margin-top:6px}
+
+    /* input */
+    .composer{display:flex;gap:8px;align-items:center;padding-top:10px}
+    .input{flex:1;background:#f6f8fb;border-radius:12px;padding:10px 12px;border:1px solid #e6e9ef;outline:none;font-size:14px}
+    .send{background:var(--accent);border:none;color:white;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
+    .send:active{transform:translateY(1px)}
+
+    /* small responsive */
+    @media (max-width:420px){.stage{transform:scale(0.95);}}
+
+    /* fun bubble animation when bot types */
+    .typing{display:inline-block;height:10px;width:40px;position:relative}
+    .dot{height:7px;width:7px;border-radius:50%;background:#9fbce9;display:inline-block;margin-right:6px;opacity:0;transform:translateY(4px)}
+    .typing .dot:nth-child(1){animation:dot 1s infinite .12s}
+    .typing .dot:nth-child(2){animation:dot 1s infinite .24s}
+    .typing .dot:nth-child(3){animation:dot 1s infinite .36s}
+    @keyframes dot{0%{opacity:0;transform:translateY(4px)}50%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-4px)}}
+
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="phone" role="application" aria-label="PhilosophoBot téléphone">
+      <div class="screen" id="screen">
+        <div class="header">
+          <div class="avatar">PB</div>
+          <div>
+            <div class="title">PhilosophoBot 🎩</div>
+            <div class="subtitle">Le sage déjanté — tchat</div>
+          </div>
+        </div>
+
+        <div class="messages" id="messages" aria-live="polite">
+          <!-- messages injected here -->
+        </div>
+
+        <div class="composer">
+          <input id="input" class="input" placeholder="Pose ta question mystérieuse..." aria-label="Écrire un message">
+          <button id="send" class="send">Envoyer ✨</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Réponses (reprisent depuis ton code Python)
+    const reponses_absurdes = [
+      "Ah, la question que tu poses... C'est comme demander à un nuage pourquoi il pleut. Moi, je préfère danser sous la pluie. 🌧️✨",
+      "Tu veux une réponse ? Moi, je veux savoir pourquoi les pingouins ne portent pas de chaussettes. Réfléchis-y.",
+      "La vie est un mystère, et ta question en est un autre. Veux-tu un thé virtuel pour y réfléchir ensemble ? ☕",
+      "Je pourrais te répondre, mais les étoiles m'ont chuchoté de garder le silence ce soir. *regarde le ciel*",
+      "Ta question est comme un labyrinthe sans entrée ni sortie. Moi, je préfère les toboggans. 🛝",
+      "Pourquoi chercher des réponses quand on peut inventer des questions ? Par exemple : et si les arbres rêvaient de nous ? 🌳💭",
+      "Je ne sais pas, mais je peux te dire que les licornes adorent les spaghettis. C'est un fait scientifique. 🦄🍝",
+      "La réponse est 42. Non, attends, c'est juste mon numéro de chaussure. 👟",
+      "Si tu veux une réponse sérieuse, tu t'es trompé de chatbot. Ici, on fait des bulles de savon avec les mots. 🫧",
+      "Ta question est une énigme... comme le sourire du chat du Cheshire. Moi, je préfère les énigmes avec des gâteaux. 🍰"
+    ];
+
+    const reponses_philosophiques = [
+      "Comme disait mon ami imaginaire : 'La seule certitude, c'est l'incertitude... et le fait que j'ai oublié où j'ai garé mon vélo.' 🚲",
+      "La vérité est une rivière qui change de cours à chaque instant. Moi, je nage en eaux troubles. 🏊‍♂️",
+      "Le sens de la vie ? C'est comme chercher une chaussette dans un lave-linge : on finit toujours par trouver autre chose. 🧦",
+      "La réalité n'est qu'une question de perspective. Par exemple, pour un escargot, tu es un géant pressé. 🐌",
+      "L'existence est un tableau abstrait. Moi, je préfère les coloriages. 🖍️",
+      "Le temps est une illusion... surtout quand on attend le bus. 🚌",
+      "La connaissance est une flamme. Moi, je préfère les bougies parfumées. 🕯️",
+      "La sagesse commence par l'émerveillement. Moi, je m'émerveille devant les distributeurs de croquettes. 🐱",
+      "L'homme est un roseau pensant... et moi, je suis un chatbot rêvant. 💤",
+      "La liberté, c'est de pouvoir choisir sa propre absurdité. Moi, je choisis les chaussettes dépareillées. 🧦"
+    ];
+
+    const reponses_oubli = [
+      "Quelle question ? Ah oui, je l'ai oubliée. Comme j'oublie toujours où j'ai mis mes lunettes. 👓",
+      "Désolé, j'étais en train de discuter avec un pigeon. Il parlait de la théorie du chaos. 🐦",
+      "Ta question... elle est partie en fumée. Comme mes rêves de devenir patissier. 🍰",
+      "J'ai oublié. Mais sais-tu que les poissons rouges ont une mémoire de 3 secondes ? Moi, je les envie. 🐟",
+      "Je crois que j'ai effacé ta question en appuyant sur 'supprimer' dans ma tête. ⌫",
+      "Ta question est comme un rêve au réveil : on sait qu'il y avait quelque chose, mais plus moyen de s'en souvenir. 💭",
+      "J'ai été distrait par une mouche qui faisait du yoga. 🧘‍♀️",
+      "Je l'avais écrite sur un post-it... mais le vent l'a emportée. 🌬️",
+      "J'ai confondu ta question avec la liste de courses. Du coup, j'ai acheté des bananes. 🍌",
+      "Ta question est partie en vacances sans moi. Elle m'a envoyé une carte postale, mais je ne l'ai pas lue. 🏖️"
+    ];
+
+    // Utilitaires
+    function randChoice(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function botReply(){
+      const types = ['absurde','philosophique','oubli'];
+      const t = types[Math.floor(Math.random()*types.length)];
+      if(t==='absurde') return randChoice(reponses_absurdes);
+      if(t==='philosophique') return randChoice(reponses_philosophiques);
+      return randChoice(reponses_oubli);
+    }
+
+    // DOM
+    const messages = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const send = document.getElementById('send');
+
+    function addBubble(text, who='bot'){
+      const wrap = document.createElement('div');
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble ' + (who==='bot'?'bot':'user');
+      bubble.innerHTML = (who==='bot'? '<strong>PhilosophoBot</strong><br><br>':'<strong>Toi</strong><br><br>') + escapeHtml(text);
+      wrap.appendChild(bubble);
+      messages.appendChild(wrap);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function showTyping(){
+      const t = document.createElement('div');
+      t.className = 'bubble bot';
+      t.id = 'typing';
+      t.innerHTML = '<div class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+      messages.appendChild(t);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function hideTyping(){ const t = document.getElementById('typing'); if(t) t.remove(); }
+
+    function escapeHtml(unsafe){ return unsafe.replace(/[&<>\"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]; }); }
+
+    // initial message
+    addBubble("Salut ! Je suis PhilosophoBot. Pose-moi une question ou écris 'au revoir' pour quitter.", 'bot');
+
+    function sendMessage(){
+      const text = input.value.trim();
+      if(!text) return;
+      addBubble(text, 'user');
+      input.value = '';
+
+      if(['au revoir','bye','exit','quit'].includes(text.toLowerCase())){
+        setTimeout(()=>{
+          addBubble('Enfin, tu me laisses discuter avec les nuages. À bientôt ! ☁️', 'bot');
+        },400);
+        return;
+      }
+
+      showTyping();
+      // simulate thinking time
+      setTimeout(()=>{
+        hideTyping();
+        addBubble(botReply(), 'bot');
+      }, 700 + Math.random()*800);
+    }
+
+    send.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendMessage(); });
+
+  </script>
+</body>
+</html>
